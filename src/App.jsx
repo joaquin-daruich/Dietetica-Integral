@@ -124,7 +124,7 @@ function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/gracias" element={<Gracias />} />
             <Route path="/pedidos" element={<Pedidos />} />
-            <Route path="https://dietetica-integral.netlify.app/stock" element={<Stock />} />
+            <Route path="/stock" element={<Stock />} />
           </Routes>
           <Footer />
         </div>
