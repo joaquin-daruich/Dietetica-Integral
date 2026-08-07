@@ -6,8 +6,16 @@ import AdminLogin from './AdminLogin';
 const CATEGORIAS = ['Proteínas', 'Alimentos', 'Vitaminas', 'Bebidas', 'Snacks', 'Deportivo'];
 
 export default function Stock() {
-  const [logueado, setLogueado] = useState(estaLogueado());
-  const [productos, setProductos] = useState([]);
+const [logueado, setLogueado] = useState(false);
+
+useEffect(() => {
+  async function verificarSesion() {
+    const activo = await estaLogueado();
+    setLogueado(activo);
+  }
+
+  verificarSesion();
+}, []);  const [productos, setProductos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [nuevo, setNuevo] = useState({ nombre: '', categoria: CATEGORIAS[0], precio: '', stock: '' });
   const [archivo, setArchivo] = useState(null);
