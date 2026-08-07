@@ -64,6 +64,9 @@ useEffect(() => {
         const { data: urlData } = supabase.storage.from('productos').getPublicUrl(nombreArchivo);
         imagen_url = urlData.publicUrl;
       }
+      const { data: sessionData } = await supabase.auth.getSession();
+
+console.log("SESION AL INSERT:", sessionData.session);
 
       const { error } = await supabase.from('productos').insert({
         nombre: nuevo.nombre,
