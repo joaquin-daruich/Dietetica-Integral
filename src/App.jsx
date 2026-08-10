@@ -98,7 +98,7 @@ function Footer() {
             <a href="https://instagram.com/dieteticaintegrallp" target="_blank" rel="noopener noreferrer">
               IG
             </a>
-            <a href="https://bit.ly/3OIUSQE" target="_blank" rel="noopener noreferrer">
+            <a href="https://wa.me/5492215929856" target="_blank" rel="noopener noreferrer">
               WA
             </a>
           </div>

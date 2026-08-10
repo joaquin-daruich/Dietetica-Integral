@@ -21,6 +21,10 @@ useEffect(() => {
   const [archivo, setArchivo] = useState(null);
   const [subiendo, setSubiendo] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [editando, setEditando] = useState(null);
+
+
+
 
   useEffect(() => {
     if (!logueado) return;
@@ -33,11 +37,63 @@ useEffect(() => {
     setProductos(data || []);
     setCargando(false);
   }
+async function guardarEdicion(e) {
+  e.preventDefault();
 
-  async function actualizarStock(id, stock) {
-    await supabase.from('productos').update({ stock }).eq('id', id);
-    cargarProductos();
+  if (!editando) return;
+
+  try {
+    let imagen_url = editando.imagen_url;
+
+    // Si seleccionó una foto nueva
+    if (editando.archivo) {
+      const nombreArchivo = `${Date.now()}-${editando.archivo.name}`;
+
+      const { error: errorSubida } = await supabase.storage
+        .from('productos')
+        .upload(nombreArchivo, editando.archivo);
+
+      if (errorSubida) throw errorSubida;
+
+      const { data: urlData } = supabase.storage
+        .from('productos')
+        .getPublicUrl(nombreArchivo);
+
+      imagen_url = urlData.publicUrl;
+    }
+
+    const { data, error } = await supabase
+      .from('productos')
+      .update({
+        nombre: editando.nombre,
+        categoria: editando.categoria,
+        precio: Number(editando.precio),
+        stock: Number(editando.stock),
+        imagen_url
+      })
+      .eq('id', editando.id)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Actualiza solamente ese producto en pantalla
+    setProductos((productosActuales) =>
+      productosActuales.map((producto) =>
+        producto.id === editando.id
+          ? data
+          : producto
+      )
+    );
+
+    // Cerrar edición
+    setEditando(null);
+
+  } catch (error) {
+    console.error('Error editando producto:', error);
+    alert('No se pudo modificar el producto: ' + error.message);
   }
+}
 
   async function eliminarProducto(id) {
     if (!window.confirm('¿Eliminar este producto?')) return;
@@ -143,25 +199,171 @@ console.log("SESION AL INSERT:", sessionData.session);
       ) : (
         <div className="stock-lista">
           {productos.map((p) => (
-            <div key={p.id} className="stock-item">
-              {p.imagen_url && <img src={p.imagen_url} alt={p.nombre} />}
-              <div className="stock-item-info">
-                <strong>{p.nombre}</strong>
-                <span>
-                  {p.categoria} — ${Number(p.precio).toLocaleString('es-AR')}
-                </span>
-              </div>
-              <input
-                type="number"
-                className="stock-input"
-                value={p.stock}
-                onChange={(e) => actualizarStock(p.id, Number(e.target.value))}
-              />
-              <button className="eliminar-producto-btn" onClick={() => eliminarProducto(p.id)}>
-                🗑️
-              </button>
-            </div>
+  <div key={p.id} className="stock-item">
+
+    {editando?.id === p.id ? (
+
+      // =========================
+      // MODO EDITAR
+      // =========================
+
+      <form
+        className="editar-producto"
+        onSubmit={guardarEdicion}
+      >
+
+        <h4>Editar producto</h4>
+
+        {p.imagen_url && (
+          <img
+            src={
+              editando.archivo
+                ? URL.createObjectURL(editando.archivo)
+                : p.imagen_url
+            }
+            alt={p.nombre}
+          />
+        )}
+
+        <input
+          type="text"
+          placeholder="Nombre"
+          value={editando.nombre}
+          onChange={(e) =>
+            setEditando({
+              ...editando,
+              nombre: e.target.value
+            })
+          }
+        />
+
+        <input
+          type="number"
+          placeholder="Precio"
+          value={editando.precio}
+          onChange={(e) =>
+            setEditando({
+              ...editando,
+              precio: e.target.value
+            })
+          }
+        />
+
+        <select
+          value={editando.categoria}
+          onChange={(e) =>
+            setEditando({
+              ...editando,
+              categoria: e.target.value
+            })
+          }
+        >
+          {CATEGORIAS.map((categoria) => (
+            <option key={categoria} value={categoria}>
+              {categoria}
+            </option>
           ))}
+        </select>
+
+        <input
+          type="number"
+          placeholder="Stock"
+          value={editando.stock}
+          onChange={(e) =>
+            setEditando({
+              ...editando,
+              stock: e.target.value
+            })
+          }
+        />
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) =>
+            setEditando({
+              ...editando,
+              archivo: e.target.files[0]
+            })
+          }
+        />
+
+        <button
+          type="submit"
+          className="submit-btn"
+        >
+          💾 Guardar cambios
+        </button>
+
+        <button
+          type="button"
+          className="cancelar-edicion-btn"
+          onClick={() => setEditando(null)}
+        >
+          Cancelar
+        </button>
+
+      </form>
+
+    ) : (
+
+      // =========================
+      // MODO NORMAL
+      // =========================
+
+      <>
+        {p.imagen_url && (
+          <img
+            src={p.imagen_url}
+            alt={p.nombre}
+          />
+        )}
+
+        <div className="stock-item-info">
+
+          <strong>{p.nombre}</strong>
+
+          <span>
+            {p.categoria} — $
+            {Number(p.precio).toLocaleString('es-AR')}
+          </span>
+
+          <span>
+            Stock: {p.stock}
+          </span>
+
+        </div>
+
+        <button
+          className="editar-producto-btn"
+          onClick={() =>
+            setEditando({
+              id: p.id,
+              nombre: p.nombre,
+              categoria: p.categoria,
+              precio: p.precio,
+              stock: p.stock,
+              imagen_url: p.imagen_url,
+              archivo: null
+            })
+          }
+        >
+          ✏️ Editar producto
+        </button>
+
+        <button
+          className="eliminar-producto-btn"
+          onClick={() => eliminarProducto(p.id)}
+        >
+          🗑️
+        </button>
+
+      </>
+
+    )}
+
+  </div>
+))}
         </div>
       )}
     </div>

@@ -113,20 +113,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="testimonials">
-        <div className="container">
-          <h2 className="section-title">Lo que dicen nuestros clientes</h2>
-          <div className="testimonials-slider">
-            {testimonials.map((t, index) => (
-              <div key={index} className="testimonial-slide active">
-                <p className="testimonial-text">"{t.text}"</p>
-                <p className="testimonial-author">- {t.name}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+    
 
       {/* Contacto Section */}
       <section id="contacto" className="contact">
@@ -142,42 +129,37 @@ export default function Home() {
                   <strong>Teléfono/WhatsApp</strong>
                   <p>
                     <a
-                      href="https://bit.ly/3OIUSQE"
+                      href="https://wa.me/5492215929856"
                       target="_blank"
                       rel="noopener noreferrer"
                     >
-                      bit.ly/3OIUSQE
+                     +54 9 2215 92-9856
                     </a>
                   </p>
                 </div>
               </div>
 
-              <div className="contact-item">
-                <span className="contact-icon">📧</span>
-                <div>
-                  <strong>Email</strong>
-                  <p>dieteticaintegral@example.com</p>
-                </div>
-              </div>
+             
 
               <div className="contact-item">
                 <span className="contact-icon">📱</span>
                 <div>
                   <strong>Instagram</strong>
-                  <p>@dieteticaintegrallp</p>
+                  <p>
+                                      <a
+                      href="https://www.instagram.com/dieteticaintegrallp/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                     @dieteticaintegrallp
+                    </a>
+                    </p>
                 </div>
               </div>
             </div>
           </div>
 
-          <form className="contact-form">
-            <input type="text" placeholder="Tu nombre" />
-            <input type="email" placeholder="Tu email" />
-            <textarea placeholder="Tu mensaje..." rows="5"></textarea>
-            <button type="submit" className="submit-btn">
-              Enviar Mensaje
-            </button>
-          </form>
+         
         </div>
       </section>
     </>
