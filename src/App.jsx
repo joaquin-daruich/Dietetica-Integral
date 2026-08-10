@@ -9,6 +9,7 @@ import Pedidos from './components/Pedidos';
 import Stock from './components/Stock';
 import CarritoDrawer from './components/CarritoDrawer';
 import './App2.css';
+import EditarHome from './components/EditarHome';
 
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -125,6 +126,8 @@ function App() {
             <Route path="/gracias" element={<Gracias />} />
             <Route path="/pedidos" element={<Pedidos />} />
             <Route path="/stock" element={<Stock />} />
+            <Route path="/editar" element={<EditarHome />} />
+
           </Routes>
           <Footer />
         </div>
