@@ -1,7 +1,3 @@
-// Netlify Function: crea el pedido en Supabase (estado "pendiente_pago") y
-// genera la preferencia de Checkout Pro de Mercado Pago.
-// Mismo patrón ES modules que usaste en la integración de Jardín Secreto Libros.
-
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { createClient } from '@supabase/supabase-js';
 
@@ -9,23 +5,43 @@ const mpClient = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKE
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
 export const handler = async (event) => {
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Content-Type': 'application/json',
+  };
+
+  // Responder a peticiones OPTIONS (CORS)
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 200, headers, body: '' };
+  }
+
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: 'Method not allowed' };
+    return { statusCode: 405, headers, body: 'Method not allowed' };
   }
 
   try {
-    const { items, comprador } = JSON.parse(event.body);
+    const { items, comprador } = JSON.parse(event.body || '{}');
 
     if (!items || items.length === 0) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'El carrito está vacío' }) };
+      return { 
+        statusCode: 400, 
+        headers,
+        body: JSON.stringify({ error: 'El carrito está vacío' }) 
+      };
     }
     if (!comprador?.nombre || !comprador?.apellido || !comprador?.dni || !comprador?.telefono) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Faltan datos del comprador' }) };
+      return { 
+        statusCode: 400, 
+        headers,
+        body: JSON.stringify({ error: 'Faltan datos del comprador' }) 
+      };
     }
 
-    const total = items.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+    const total = items.reduce((acc, i) => acc + Number(i.precio) * Number(i.cantidad), 0);
 
-    // 1. Registrar el pedido en Supabase antes de mandarlo a Mercado Pago.
+    // 1. Registrar el pedido en Supabase
     const { data: pedido, error: errorPedido } = await supabase
       .from('pedidos')
       .insert({
@@ -41,41 +57,62 @@ export const handler = async (event) => {
       .select()
       .single();
 
-    if (errorPedido) throw errorPedido;
+    if (errorPedido) {
+      console.error('Error guardando en Supabase:', errorPedido);
+      throw new Error(`Error en base de datos: ${errorPedido.message}`);
+    }
 
     const siteUrl = process.env.URL || 'https://ejemplo-cambiar.netlify.app';
 
-    // 2. Crear la preferencia de Checkout Pro.
+    // Construcción del body para Mercado Pago
+const preferenceBody = {
+  items: items.map((i) => ({
+    title: String(i.nombre),
+    quantity: Number(i.cantidad),
+    unit_price: Number(i.precio),
+    currency_id: 'ARS',
+  })),
+  payer: {
+    name: comprador.nombre,
+    surname: comprador.apellido,
+  },
+  back_urls: {
+    success: `${siteUrl}/gracias?pedido=${pedido.id}`,
+    failure: `${siteUrl}/checkout?error=pago_fallido`,
+    pending: `${siteUrl}/gracias?pedido=${pedido.id}`,
+  },
+  external_reference: String(pedido.id),
+};
+
+// Mercado Pago EXIGE https:// para activar auto_return
+if (siteUrl.startsWith('https://')) {
+  preferenceBody.auto_return = 'approved';
+  
+  if (!siteUrl.includes('localhost')) {
+    preferenceBody.notification_url = `${siteUrl}/.netlify/functions/webhook-mercadopago`;
+  }
+}
+    // 2. Crear preferencia
     const preference = new Preference(mpClient);
-    const resultado = await preference.create({
-      body: {
-        items: items.map((i) => ({
-          title: i.nombre,
-          quantity: i.cantidad,
-          unit_price: Number(i.precio),
-          currency_id: 'ARS',
-        })),
-        payer: {
-          name: comprador.nombre,
-          surname: comprador.apellido,
-        },
-        back_urls: {
-          success: `${siteUrl}/gracias?pedido=${pedido.id}`,
-          failure: `${siteUrl}/checkout?error=pago_fallido`,
-          pending: `${siteUrl}/gracias?pedido=${pedido.id}`,
-        },
-        auto_return: 'approved',
-        notification_url: `${siteUrl}/.netlify/functions/webhook-mercadopago`,
-        external_reference: String(pedido.id),
-      },
-    });
+    const resultado = await preference.create({ body: preferenceBody });
+
+    const initPoint = resultado.init_point || resultado.sandbox_init_point;
+
+    if (!initPoint) {
+      throw new Error('Mercado Pago no devolvió un link de pago válido.');
+    }
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ init_point: resultado.init_point, pedidoId: pedido.id }),
+      headers,
+      body: JSON.stringify({ init_point: initPoint, pedidoId: pedido.id }),
     };
   } catch (err) {
-    console.error('Error creando preferencia:', err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    console.error('Error en crear-preferencia:', err);
+    return { 
+      statusCode: 500, 
+      headers,
+      body: JSON.stringify({ error: err.message || 'Error interno del servidor' }) 
+    };
   }
 };

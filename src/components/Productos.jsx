@@ -2,24 +2,35 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../context/CartContext';
 
-const CATEGORIAS = ['Todos', 'Proteínas', 'Alimentos', 'Vitaminas', 'Bebidas', 'Snacks', 'Deportivo'];
-
 export default function Productos() {
   const [productos, setProductos] = useState([]);
+  const [categorias, setCategorias] = useState(['Todos']);
   const [categoria, setCategoria] = useState('Todos');
   const [cargando, setCargando] = useState(true);
   const { agregar } = useCart();
 
   useEffect(() => {
-    async function cargar() {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('*')
-        .order('nombre', { ascending: true });
-      if (!error) setProductos(data || []);
+    async function cargarDatos() {
+      setCargando(true);
+      
+      const [resProductos, resCategorias] = await Promise.all([
+        supabase.from('productos').select('*').order('nombre', { ascending: true }),
+        supabase.from('categorias').select('nombre').order('nombre', { ascending: true })
+      ]);
+
+      if (!resProductos.error && resProductos.data) {
+        setProductos(resProductos.data);
+      }
+
+      if (!resCategorias.error && resCategorias.data) {
+        const nombresCat = resCategorias.data.map((c) => c.nombre);
+        setCategorias(['Todos', ...nombresCat]);
+      }
+
       setCargando(false);
     }
-    cargar();
+
+    cargarDatos();
   }, []);
 
   const filtrados =
@@ -33,8 +44,9 @@ export default function Productos() {
         🎓 Descuentos especiales para estudiantes y jubilados — consultanos por WhatsApp
       </p>
 
+      {/* FILTRO DE CATEGORÍAS DINÁMICO */}
       <div className="categorias-filtro">
-        {CATEGORIAS.map((cat) => (
+        {categorias.map((cat) => (
           <button
             key={cat}
             className={`filtro-btn ${categoria === cat ? 'active' : ''}`}
