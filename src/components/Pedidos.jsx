@@ -4,9 +4,19 @@ import { estaLogueado, cerrarSesion } from '../lib/auth';
 import AdminLogin from './AdminLogin';
 
 export default function Pedidos() {
-  const [logueado, setLogueado] = useState(estaLogueado());
+  const [logueado, setLogueado] = useState(false);
+  const [verificando, setVerificando] = useState(true);
   const [pedidos, setPedidos] = useState([]);
   const [cargando, setCargando] = useState(true);
+
+  useEffect(() => {
+    async function verificarSesion() {
+      const activo = await estaLogueado();
+      setLogueado(activo);
+      setVerificando(false);
+    }
+    verificarSesion();
+  }, []);
 
   useEffect(() => {
     if (!logueado) return;
@@ -28,6 +38,7 @@ export default function Pedidos() {
     cargarPedidos();
   }
 
+  if (verificando) return null;
   if (!logueado) return <AdminLogin onLogin={() => setLogueado(true)} />;
 
   const pendientes = pedidos.filter((p) => !p.entregado);

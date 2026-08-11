@@ -1,7 +1,12 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { estaLogueado } from '../lib/auth';
+import AdminLogin from './AdminLogin';
 
 export default function EditarHome() {
+  const [logueado, setLogueado] = useState(false);
+  const [verificando, setVerificando] = useState(true);
+
   const [config, setConfig] = useState({
     hero_titulo: '',
     hero_descripcion: '',
@@ -24,8 +29,19 @@ export default function EditarHome() {
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
 
+  useEffect(() => {
+    async function verificarSesion() {
+      const activo = await estaLogueado();
+      setLogueado(activo);
+      setVerificando(false);
+    }
+    verificarSesion();
+  }, []);
+
   // Carga idéntica a tu Home.jsx
   useEffect(() => {
+    if (!logueado) return;
+
     async function cargarConfiguracion() {
       const { data, error } = await supabase
         .from('configuracion')
@@ -50,7 +66,7 @@ export default function EditarHome() {
     }
 
     cargarConfiguracion();
-  }, []);
+  }, [logueado]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -88,6 +104,9 @@ export default function EditarHome() {
       setGuardando(false);
     }
   };
+
+  if (verificando) return null;
+  if (!logueado) return <AdminLogin onLogin={() => setLogueado(true)} />;
 
   if (cargando) {
     return (
