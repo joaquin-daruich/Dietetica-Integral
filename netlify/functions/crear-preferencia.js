@@ -1,6 +1,11 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { createClient } from '@supabase/supabase-js';
 
+// Verificación en consola para depuración en Netlify Logs
+if (!process.env.MP_ACCESS_TOKEN?.startsWith('APP_USR-')) {
+  console.warn('⚠️ ATENCIÓN: MP_ACCESS_TOKEN no parece ser de producción (debe empezar con APP_USR-)');
+}
+
 const mpClient = new MercadoPagoConfig({ accessToken: process.env.MP_ACCESS_TOKEN });
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
@@ -12,7 +17,6 @@ export const handler = async (event) => {
     'Content-Type': 'application/json',
   };
 
-  // Responder a peticiones OPTIONS (CORS)
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -62,50 +66,54 @@ export const handler = async (event) => {
       throw new Error(`Error en base de datos: ${errorPedido.message}`);
     }
 
-    const siteUrl = process.env.URL || 'https://ejemplo-cambiar.netlify.app';
+    const siteUrl = process.env.URL || 'https://dietetica-integral.netlify.app/';
 
-    // Construcción del body para Mercado Pago
-const preferenceBody = {
-  items: items.map((i) => ({
-    title: String(i.nombre),
-    quantity: Number(i.cantidad),
-    unit_price: Number(i.precio),
-    currency_id: 'ARS',
-  })),
-  payer: {
-    name: comprador.nombre,
-    surname: comprador.apellido,
-  },
-  back_urls: {
-    success: `${siteUrl}/gracias?pedido=${pedido.id}`,
-    failure: `${siteUrl}/checkout?error=pago_fallido`,
-    pending: `${siteUrl}/gracias?pedido=${pedido.id}`,
-  },
-  external_reference: String(pedido.id),
-};
+    // 2. Construcción del body para Mercado Pago Producción
+    const preferenceBody = {
+      items: items.map((i) => ({
+        id: String(i.id),
+        title: String(i.nombre),
+        quantity: Number(i.cantidad),
+        unit_price: Number(i.precio),
+        currency_id: 'ARS',
+      })),
+      payer: {
+        name: comprador.nombre,
+        surname: comprador.apellido,
+        phone: {
+          number: comprador.telefono
+        },
+        identification: {
+          type: 'DNI',
+          number: String(comprador.dni)
+        }
+      },
+      back_urls: {
+        success: `${siteUrl}/gracias?pedido=${pedido.id}`,
+        failure: `${siteUrl}/checkout?error=pago_fallido`,
+        pending: `${siteUrl}/gracias?pedido=${pedido.id}`,
+      },
+      external_reference: String(pedido.id),
+      auto_return: 'approved',
+    };
 
-// Mercado Pago EXIGE https:// para activar auto_return
-if (siteUrl.startsWith('https://')) {
-  preferenceBody.auto_return = 'approved';
-  
-  if (!siteUrl.includes('localhost')) {
-    preferenceBody.notification_url = `${siteUrl}/.netlify/functions/webhook-mercadopago`;
-  }
-}
-    // 2. Crear preferencia
+    if (siteUrl.startsWith('https://') && !siteUrl.includes('localhost')) {
+      preferenceBody.notification_url = `${siteUrl}/.netlify/functions/webhook-mercadopago`;
+    }
+
+    // 3. Crear preferencia
     const preference = new Preference(mpClient);
     const resultado = await preference.create({ body: preferenceBody });
 
-    const initPoint = resultado.init_point || resultado.sandbox_init_point;
-
-    if (!initPoint) {
-      throw new Error('Mercado Pago no devolvió un link de pago válido.');
+    // FORZAMOS init_point (Producción Real)
+    if (!resultado.init_point) {
+      throw new Error('Mercado Pago no devolvió un punto de inicio de pago en producción.');
     }
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ init_point: initPoint, pedidoId: pedido.id }),
+      body: JSON.stringify({ init_point: resultado.init_point, pedidoId: pedido.id }),
     };
   } catch (err) {
     console.error('Error en crear-preferencia:', err);
