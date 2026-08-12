@@ -25,25 +25,43 @@ export default function Pedidos() {
 
   async function cargarPedidos() {
     setCargando(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('pedidos')
       .select('*')
-      .order('created_at', { ascending: true });
-    setPedidos(data || []);
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error al cargar pedidos:', error.message);
+    } else {
+      setPedidos(data || []);
+    }
     setCargando(false);
   }
 
   async function marcarEntregado(id) {
-    await supabase.from('pedidos').update({ entregado: true }).eq('id', id);
-    cargarPedidos();
+    const { error } = await supabase
+      .from('pedidos')
+      .update({ entregado: true, estado: 'Entregado' })
+      .eq('id', id);
+
+    if (error) {
+      alert(`Error al actualizar pedido: ${error.message}`);
+    } else {
+      cargarPedidos();
+    }
   }
 
   async function eliminarPedido(id) {
     const confirmar = window.confirm('¿Estás seguro de que querés eliminar este pedido?');
     if (!confirmar) return;
 
-    await supabase.from('pedidos').delete().eq('id', id);
-    cargarPedidos();
+    const { error } = await supabase.from('pedidos').delete().eq('id', id);
+
+    if (error) {
+      alert(`Error al eliminar pedido: ${error.message}`);
+    } else {
+      cargarPedidos();
+    }
   }
 
   if (verificando) return null;
@@ -83,6 +101,7 @@ export default function Pedidos() {
             ))}
             {pendientes.length === 0 && <p className="sin-pedidos">No hay pedidos pendientes</p>}
           </div>
+
           <div className="pedidos-columna">
             <h3>Entregados ({entregados.length})</h3>
             {entregados.map((p) => (
@@ -106,7 +125,14 @@ export default function Pedidos() {
 function PedidoCard({ pedido, onEntregar, onEliminar, entregado }) {
   const fecha = new Date(pedido.created_at).toLocaleString('es-AR');
   const soloNumeros = pedido.telefono ? pedido.telefono.replace(/\D/g, '') : '';
-  const linkWhatsapp = `https://wa.me/549${soloNumeros}`;
+  
+  const numeroLimpio = soloNumeros.startsWith('549') ? soloNumeros : `549${soloNumeros}`;
+  const linkWhatsapp = `https://wa.me/${numeroLimpio}`;
+
+  // Lectura compatible con 'items' o 'productos'
+  const listaProductos = pedido.items || pedido.productos || [];
+  // Lectura compatible con 'nombre_cliente' o 'nombre'
+  const nombreCliente = pedido.nombre_cliente || pedido.nombre;
 
   return (
     <div className="pedido-card">
@@ -115,23 +141,24 @@ function PedidoCard({ pedido, onEntregar, onEliminar, entregado }) {
       </div>
       <p className="pedido-fecha">{fecha}</p>
       <p>
-        <strong>{pedido.nombre}</strong> — Cel: {pedido.telefono}
+        <strong>{nombreCliente}</strong> — Cel: {pedido.telefono}
       </p>
       <ul className="pedido-productos-lista">
-        {pedido.productos &&
-          pedido.productos.map((prod, idx) => (
-            <li key={idx}>
-              {prod.cantidad}x {prod.nombre}
-            </li>
-          ))}
+        {listaProductos.map((prod, idx) => (
+          <li key={idx}>
+            {prod.cantidad}x {prod.nombre}
+          </li>
+        ))}
       </ul>
       <p className="pedido-total">
-        <strong>Total: ${Number(pedido.total).toLocaleString('es-AR')}</strong>
+        <strong>Total: ${Number(pedido.total || 0).toLocaleString('es-AR')}</strong>
       </p>
       <div className="pedido-acciones">
-        <a href={linkWhatsapp} target="_blank" rel="noopener noreferrer" className="whatsapp-cliente-btn">
-          Hablar por WhatsApp
-        </a>
+        {pedido.telefono && (
+          <a href={linkWhatsapp} target="_blank" rel="noopener noreferrer" className="whatsapp-cliente-btn">
+            Hablar por WhatsApp
+          </a>
+        )}
         {!entregado && (
           <button className="marcar-entregado-btn" onClick={onEntregar}>
             Marcar como entregado

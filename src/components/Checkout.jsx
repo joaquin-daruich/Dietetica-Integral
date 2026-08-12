@@ -67,27 +67,32 @@ export default function Checkout() {
     setErrorMsg('');
 
     try {
-      // Guarda el pedido directo en Supabase
+      // 1. Guarda el pedido usando los nombres de columna correctos de la BD
       const { error } = await supabase.from('pedidos').insert({
-        nombre: form.nombre,
+        nombre_cliente: form.nombre,
         telefono: form.telefono,
-        productos: items.map((i) => ({
+        items: items.map((i) => ({
           id: i.id,
           nombre: i.nombre,
           precio: i.precio,
           cantidad: i.cantidad,
         })),
         total,
-        estado: 'pendiente',
-        entregado: false,
+        estado: 'Pendiente',
       });
 
       if (error) throw error;
 
+      // 2. Limpia el prefijo si ya incluye '549' para evitar duplicados
+      const numeroLimpio = whatsappNegocio.startsWith('549')
+        ? whatsappNegocio
+        : `549${whatsappNegocio}`;
+
       const mensaje = encodeURIComponent(armarMensajeWhatsapp());
       vaciar();
-      window.location.href = `https://wa.me/549${whatsappNegocio}?text=${mensaje}`;
+      window.location.href = `https://wa.me/${numeroLimpio}?text=${mensaje}`;
     } catch (err) {
+      console.error('Error insertando pedido:', err);
       setErrorMsg('Hubo un error al registrar tu pedido. Probá de nuevo en un momento.');
       setEnviando(false);
     }
