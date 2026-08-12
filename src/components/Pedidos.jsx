@@ -115,10 +115,7 @@ function PedidoCard({ pedido, onEntregar, onEliminar, entregado }) {
       </div>
       <p className="pedido-fecha">{fecha}</p>
       <p>
-        <strong>
-          {pedido.nombre} {pedido.apellido}
-        </strong>{' '}
-        — DNI {pedido.dni}
+        <strong>{pedido.nombre}</strong> — Cel: {pedido.telefono}
       </p>
       <ul className="pedido-productos-lista">
         {pedido.productos &&
