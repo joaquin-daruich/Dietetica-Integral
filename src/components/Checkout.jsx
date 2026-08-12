@@ -67,23 +67,31 @@ export default function Checkout() {
     setErrorMsg('');
 
     try {
-      // 1. Guarda el pedido usando los nombres de columna correctos de la BD
-      const { error } = await supabase.from('pedidos').insert({
-        nombre_cliente: form.nombre,
-        telefono: form.telefono,
-        items: items.map((i) => ({
-          id: i.id,
-          nombre: i.nombre,
-          precio: i.precio,
-          cantidad: i.cantidad,
-        })),
-        total,
-        estado: 'Pendiente',
-      });
+      // Mapeamos los datos para enviar "productos" a Supabase
+      const productosAEnviar = items.map((i) => ({
+        id: i.id,
+        nombre: i.nombre,
+        precio: i.precio,
+        cantidad: i.cantidad,
+      }));
 
-      if (error) throw error;
+      // Guarda el pedido directo en Supabase
+      const { error } = await supabase.from('pedidos').insert([
+        {
+          nombre: form.nombre,
+          telefono: form.telefono,
+          productos: productosAEnviar,
+          total: total,
+          estado: 'pendiente',
+          entregado: false,
+        },
+      ]);
 
-      // 2. Limpia el prefijo si ya incluye '549' para evitar duplicados
+      if (error) {
+        console.error('Error detallado de Supabase:', error);
+        throw error;
+      }
+
       const numeroLimpio = whatsappNegocio.startsWith('549')
         ? whatsappNegocio
         : `549${whatsappNegocio}`;
@@ -92,8 +100,8 @@ export default function Checkout() {
       vaciar();
       window.location.href = `https://wa.me/${numeroLimpio}?text=${mensaje}`;
     } catch (err) {
-      console.error('Error insertando pedido:', err);
-      setErrorMsg('Hubo un error al registrar tu pedido. Probá de nuevo en un momento.');
+      console.error('Error al procesar pedido:', err);
+      setErrorMsg(`Error al registrar el pedido: ${err.message || 'Intentalo de nuevo'}`);
       setEnviando(false);
     }
   };
@@ -124,7 +132,7 @@ export default function Checkout() {
           value={form.telefono}
           onChange={handleChange}
         />
-        {errorMsg && <p className="checkout-error">{errorMsg}</p>}
+        {errorMsg && <p className="checkout-error" style={{ color: 'red', marginTop: '10px' }}>{errorMsg}</p>}
         <button type="submit" className="submit-btn" disabled={enviando}>
           {enviando ? 'Redirigiendo a WhatsApp...' : 'Confirmar pedido por WhatsApp'}
         </button>
