@@ -1,13 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Checkout() {
-  const { items, total } = useCart();
+  const { items, total, vaciar } = useCart();
   const navigate = useNavigate();
   const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', telefono: '' });
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [whatsappNegocio, setWhatsappNegocio] = useState('');
+
+  // Trae el número de WhatsApp del negocio desde configuracion (mismo patrón que Home.jsx)
+  useEffect(() => {
+    async function cargarConfiguracion() {
+      const { data, error } = await supabase
+        .from('configuracion')
+        .select('clave, valor')
+        .eq('clave', 'whatsapp')
+        .maybeSingle();
+
+      if (!error && data) {
+        setWhatsappNegocio(data.valor.replace(/\D/g, ''));
+      }
+    }
+    cargarConfiguracion();
+  }, []);
 
   if (items.length === 0) {
     return (
@@ -22,36 +40,57 @@ export default function Checkout() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
+  const armarMensajeWhatsapp = () => {
+    const lineas = items.map(
+      (i) => `${i.cantidad}x ${i.nombre} - $${(i.precio * i.cantidad).toLocaleString('es-AR')}`
+    );
+    return (
+      `¡Hola! Quiero confirmar mi pedido:\n\n` +
+      lineas.join('\n') +
+      `\n\nTotal: $${total.toLocaleString('es-AR')}` +
+      `\n\nDatos:\n${form.nombre} ${form.apellido}\nDNI: ${form.dni}\nTeléfono: ${form.telefono}`
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.nombre || !form.apellido || !form.dni || !form.telefono) {
       setErrorMsg('Completá todos los datos para continuar.');
       return;
     }
+    if (!whatsappNegocio) {
+      setErrorMsg('No se pudo cargar el WhatsApp del negocio. Probá de nuevo en un momento.');
+      return;
+    }
+
     setEnviando(true);
     setErrorMsg('');
+
     try {
-      const resp = await fetch('/.netlify/functions/crear-preferencia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: items.map((i) => ({
-            id: i.id,
-            nombre: i.nombre,
-            precio: i.precio,
-            cantidad: i.cantidad,
-          })),
-          comprador: form,
-        }),
+      // Guarda el pedido directo en Supabase (RLS permite insert público en pedidos)
+      const { error } = await supabase.from('pedidos').insert({
+        nombre: form.nombre,
+        apellido: form.apellido,
+        dni: form.dni,
+        telefono: form.telefono,
+        productos: items.map((i) => ({
+          id: i.id,
+          nombre: i.nombre,
+          precio: i.precio,
+          cantidad: i.cantidad,
+        })),
+        total,
+        estado: 'pendiente',
+        entregado: false,
       });
-      const data = await resp.json();
-      if (resp.ok && data.init_point) {
-        window.location.href = data.init_point;
-      } else {
-        throw new Error(data.error || 'No se pudo iniciar el pago');
-      }
+
+      if (error) throw error;
+
+      const mensaje = encodeURIComponent(armarMensajeWhatsapp());
+      vaciar();
+      window.location.href = `https://wa.me/549${whatsappNegocio}?text=${mensaje}`;
     } catch (err) {
-      setErrorMsg('Hubo un error al iniciar el pago. Probá de nuevo en un momento.');
+      setErrorMsg('Hubo un error al registrar tu pedido. Probá de nuevo en un momento.');
       setEnviando(false);
     }
   };
@@ -86,7 +125,7 @@ export default function Checkout() {
         />
         {errorMsg && <p className="checkout-error">{errorMsg}</p>}
         <button type="submit" className="submit-btn" disabled={enviando}>
-          {enviando ? 'Redirigiendo a Mercado Pago...' : 'Pagar con Mercado Pago'}
+          {enviando ? 'Redirigiendo a WhatsApp...' : 'Confirmar pedido por WhatsApp'}
         </button>
       </form>
     </div>

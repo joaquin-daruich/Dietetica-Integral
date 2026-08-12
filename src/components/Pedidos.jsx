@@ -91,7 +91,7 @@ function PedidoCard({ pedido, onEntregar, entregado }) {
   const linkWhatsapp = `https://wa.me/549${soloNumeros}`;
 
   return (
-    <div className={`pedido-card ${pedido.estado === 'pendiente_pago' ? 'pedido-sin-pagar' : ''}`}>
+    <div className={`pedido-card ${pedido.estado === 'pendiente' ? 'pedido-sin-pagar' : ''}`}>
       <div className="pedido-card-header">
         <span>Pedido #{pedido.id}</span>
         <span className={`pedido-estado estado-${pedido.estado}`}>
