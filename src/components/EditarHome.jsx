@@ -10,6 +10,7 @@ export default function EditarHome() {
   const [config, setConfig] = useState({
     hero_titulo: '',
     hero_descripcion: '',
+    hero_imagen: '', // URL de la imagen
     direccion: '',
     horarios: '',
     mision: '',
@@ -25,6 +26,8 @@ export default function EditarHome() {
     instagram: '',
   });
 
+  const [archivoImagen, setArchivoImagen] = useState(null);
+  const [subiendoImagen, setSubiendoImagen] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
@@ -38,7 +41,6 @@ export default function EditarHome() {
     verificarSesion();
   }, []);
 
-  // Carga idéntica a tu Home.jsx
   useEffect(() => {
     if (!logueado) return;
 
@@ -76,14 +78,56 @@ export default function EditarHome() {
     }));
   };
 
+  const handleImagenChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setArchivoImagen(e.target.files[0]);
+    }
+  };
+
+  const subirImagenSupabase = async () => {
+    if (!archivoImagen) return config.hero_imagen;
+
+    setSubiendoImagen(true);
+    const nombreArchivo = `hero-${Date.now()}.${archivoImagen.name.split('.').pop()}`;
+
+    // 1. Subir al bucket "imagenes"
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('imagenes')
+      .upload(nombreArchivo, archivoImagen, { upsert: true });
+
+    if (uploadError) {
+      throw new Error(`Error al subir imagen: ${uploadError.message}`);
+    }
+
+    // 2. Obtener URL Pública
+    const { data: urlData } = supabase.storage
+      .from('imagenes')
+      .getPublicUrl(nombreArchivo);
+
+    setSubiendoImagen(false);
+    return urlData.publicUrl;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setGuardando(true);
     setMensaje({ tipo: '', texto: '' });
 
     try {
-      // Guardamos clave por clave para evitar problemas con upsert si no hay Primary Key
-      const promesas = Object.entries(config).map(([clave, valor]) =>
+      let urlImagenFinal = config.hero_imagen;
+
+      // Subir nueva imagen si el usuario eligió un archivo
+      if (archivoImagen) {
+        urlImagenFinal = await subirImagenSupabase();
+      }
+
+      const datosAActualizar = {
+        ...config,
+        hero_imagen: urlImagenFinal,
+      };
+
+      // Guardamos clave por clave
+      const promesas = Object.entries(datosAActualizar).map(([clave, valor]) =>
         supabase
           .from('configuracion')
           .upsert({ clave, valor }, { onConflict: 'clave' })
@@ -96,12 +140,15 @@ export default function EditarHome() {
         throw algunError.error;
       }
 
-      setMensaje({ tipo: 'exito', texto: '✨ ¡Cambios guardados con éxito! Ya se ven en la web.' });
+      setConfig(datosAActualizar);
+      setArchivoImagen(null);
+      setMensaje({ tipo: 'exito', texto: '✨ ¡Cambios e imagen guardados con éxito!' });
     } catch (error) {
       console.error('Error al guardar configuración:', error);
       setMensaje({ tipo: 'error', texto: `Error al guardar: ${error.message || 'Revisá la consola.'}` });
     } finally {
       setGuardando(false);
+      setSubiendoImagen(false);
     }
   };
 
@@ -118,18 +165,15 @@ export default function EditarHome() {
 
   return (
     <div className="container" style={{ maxWidth: '850px', padding: '40px 20px' }}>
-      
-      {/* Encabezado del Panel */}
       <div style={{ textAlign: 'center', marginBottom: '35px' }}>
         <h2 className="section-title" style={{ marginBottom: '10px' }}>
           ✏️ Editar Página de Inicio
         </h2>
         <p style={{ fontSize: '1.1rem', color: '#555' }}>
-          Cambiá los textos de tu sitio web de forma simple. Modificá lo que necesites y presioná el botón al final.
+          Cambiá los textos e imagen de tu sitio web de forma simple.
         </p>
       </div>
 
-      {/* Carteles de Feedback */}
       {mensaje.texto && (
         <div
           style={{
@@ -183,6 +227,31 @@ export default function EditarHome() {
                 style={{ width: '100%', padding: '12px', marginTop: '6px', borderRadius: '8px', border: '1px solid #ccc', fontFamily: 'inherit' }}
               />
             </label>
+
+            {/* CAMPO DE EDICIÓN DE IMAGEN */}
+            <div style={{ marginTop: '10px' }}>
+              <label style={{ fontWeight: 'bold', display: 'block', marginBottom: '8px' }}>
+                Imagen Principal de Portada:
+              </label>
+
+              {(config.hero_imagen || archivoImagen) && (
+                <div style={{ marginBottom: '12px' }}>
+                  <p style={{ fontSize: '0.85rem', color: '#666', margin: '0 0 5px 0' }}>Vista previa actual:</p>
+                  <img
+                    src={archivoImagen ? URL.createObjectURL(archivoImagen) : config.hero_imagen}
+                    alt="Vista previa"
+                    style={{ width: '160px', height: '110px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #ddd' }}
+                  />
+                </div>
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImagenChange}
+                style={{ marginTop: '4px' }}
+              />
+            </div>
           </div>
         </div>
 
@@ -246,7 +315,6 @@ export default function EditarHome() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-            
             {/* Tarjeta 1 */}
             <div style={{ padding: '15px', background: '#f9f9f9', borderRadius: '10px', border: '1px solid #eee' }}>
               <p style={{ fontWeight: 'bold', margin: '0 0 10px 0', color: '#2e7d32' }}>🥗 Servicio 1</p>
@@ -330,7 +398,6 @@ export default function EditarHome() {
                 style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ccc' }}
               />
             </div>
-
           </div>
         </div>
 
@@ -347,9 +414,6 @@ export default function EditarHome() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <label style={{ fontWeight: 'bold' }}>
               📞 Número de WhatsApp:
-              <span style={{ display: 'block', fontWeight: 'normal', fontSize: '0.85rem', color: '#666' }}>
-                Ingresalo sin el signo + ni espacios (Ejemplo: 5492211234567).
-              </span>
               <input
                 type="text"
                 name="whatsapp"
@@ -362,9 +426,6 @@ export default function EditarHome() {
 
             <label style={{ fontWeight: 'bold' }}>
               📱 Usuario de Instagram:
-              <span style={{ display: 'block', fontWeight: 'normal', fontSize: '0.85rem', color: '#666' }}>
-                Ingresalo sin el @ (Ejemplo: dieteticaintegrallp).
-              </span>
               <input
                 type="text"
                 name="instagram"
@@ -381,7 +442,7 @@ export default function EditarHome() {
         <button
           type="submit"
           className="cta-button"
-          disabled={guardando}
+          disabled={guardando || subiendoImagen}
           style={{
             width: '100%',
             padding: '16px',

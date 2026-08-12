@@ -77,14 +77,14 @@ export default function Home() {
 
           </div>
 
-          <div className="hero-image">
-            <div className="hero-card">
-              <img
-                src="/diet1.jpg"
-                alt="Productos saludables"
-              />
-            </div>
-          </div>
+    <div className="hero-image">
+      <div className="hero-card">
+        <img
+          src={config.hero_imagen || "/foto-dietetica.jpg"}
+          alt="Productos saludables"
+        />
+      </div>
+    </div>
 
         </div>
       </section>

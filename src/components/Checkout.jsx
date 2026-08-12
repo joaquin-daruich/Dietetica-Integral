@@ -6,12 +6,12 @@ import { supabase } from '../lib/supabaseClient';
 export default function Checkout() {
   const { items, total, vaciar } = useCart();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nombre: '', apellido: '', dni: '', telefono: '' });
+  const [form, setForm] = useState({ nombre: '', telefono: '' });
   const [enviando, setEnviando] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [whatsappNegocio, setWhatsappNegocio] = useState('');
 
-  // Trae el número de WhatsApp del negocio desde configuracion (mismo patrón que Home.jsx)
+  // Trae el número de WhatsApp del negocio desde configuracion
   useEffect(() => {
     async function cargarConfiguracion() {
       const { data, error } = await supabase
@@ -48,13 +48,13 @@ export default function Checkout() {
       `¡Hola! Quiero confirmar mi pedido:\n\n` +
       lineas.join('\n') +
       `\n\nTotal: $${total.toLocaleString('es-AR')}` +
-      `\n\nDatos:\n${form.nombre} ${form.apellido}\nDNI: ${form.dni}\nTeléfono: ${form.telefono}`
+      `\n\nDatos:\nNombre: ${form.nombre}\nTeléfono: ${form.telefono}`
     );
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.nombre || !form.apellido || !form.dni || !form.telefono) {
+    if (!form.nombre || !form.telefono) {
       setErrorMsg('Completá todos los datos para continuar.');
       return;
     }
@@ -67,11 +67,9 @@ export default function Checkout() {
     setErrorMsg('');
 
     try {
-      // Guarda el pedido directo en Supabase (RLS permite insert público en pedidos)
+      // Guarda el pedido directo en Supabase
       const { error } = await supabase.from('pedidos').insert({
         nombre: form.nombre,
-        apellido: form.apellido,
-        dni: form.dni,
         telefono: form.telefono,
         productos: items.map((i) => ({
           id: i.id,
@@ -115,8 +113,6 @@ export default function Checkout() {
 
       <form className="contact-form checkout-form" onSubmit={handleSubmit}>
         <input name="nombre" placeholder="Nombre" value={form.nombre} onChange={handleChange} />
-        <input name="apellido" placeholder="Apellido" value={form.apellido} onChange={handleChange} />
-        <input name="dni" placeholder="DNI" value={form.dni} onChange={handleChange} />
         <input
           name="telefono"
           placeholder="Teléfono (con código de área, sin 0 ni 15)"
