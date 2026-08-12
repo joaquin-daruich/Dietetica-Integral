@@ -38,6 +38,14 @@ export default function Pedidos() {
     cargarPedidos();
   }
 
+  async function eliminarPedido(id) {
+    const confirmar = window.confirm('¿Estás seguro de que querés eliminar este pedido?');
+    if (!confirmar) return;
+
+    await supabase.from('pedidos').delete().eq('id', id);
+    cargarPedidos();
+  }
+
   if (verificando) return null;
   if (!logueado) return <AdminLogin onLogin={() => setLogueado(true)} />;
 
@@ -66,14 +74,24 @@ export default function Pedidos() {
           <div className="pedidos-columna">
             <h3>Pendientes de entrega ({pendientes.length})</h3>
             {pendientes.map((p) => (
-              <PedidoCard key={p.id} pedido={p} onEntregar={() => marcarEntregado(p.id)} />
+              <PedidoCard
+                key={p.id}
+                pedido={p}
+                onEntregar={() => marcarEntregado(p.id)}
+                onEliminar={() => eliminarPedido(p.id)}
+              />
             ))}
             {pendientes.length === 0 && <p className="sin-pedidos">No hay pedidos pendientes</p>}
           </div>
           <div className="pedidos-columna">
             <h3>Entregados ({entregados.length})</h3>
             {entregados.map((p) => (
-              <PedidoCard key={p.id} pedido={p} entregado />
+              <PedidoCard
+                key={p.id}
+                pedido={p}
+                entregado
+                onEliminar={() => eliminarPedido(p.id)}
+              />
             ))}
             {entregados.length === 0 && (
               <p className="sin-pedidos">Todavía no hay pedidos entregados</p>
@@ -85,18 +103,15 @@ export default function Pedidos() {
   );
 }
 
-function PedidoCard({ pedido, onEntregar, entregado }) {
+function PedidoCard({ pedido, onEntregar, onEliminar, entregado }) {
   const fecha = new Date(pedido.created_at).toLocaleString('es-AR');
-  const soloNumeros = pedido.telefono.replace(/\D/g, '');
+  const soloNumeros = pedido.telefono ? pedido.telefono.replace(/\D/g, '') : '';
   const linkWhatsapp = `https://wa.me/549${soloNumeros}`;
 
   return (
-    <div className={`pedido-card ${pedido.estado === 'pendiente' ? 'pedido-sin-pagar' : ''}`}>
+    <div className="pedido-card">
       <div className="pedido-card-header">
         <span>Pedido #{pedido.id}</span>
-        <span className={`pedido-estado estado-${pedido.estado}`}>
-          {pedido.estado === 'pagado' ? 'Pagado ✅' : 'Pago pendiente ⚠️'}
-        </span>
       </div>
       <p className="pedido-fecha">{fecha}</p>
       <p>
@@ -106,11 +121,12 @@ function PedidoCard({ pedido, onEntregar, entregado }) {
         — DNI {pedido.dni}
       </p>
       <ul className="pedido-productos-lista">
-        {pedido.productos.map((prod, idx) => (
-          <li key={idx}>
-            {prod.cantidad}x {prod.nombre}
-          </li>
-        ))}
+        {pedido.productos &&
+          pedido.productos.map((prod, idx) => (
+            <li key={idx}>
+              {prod.cantidad}x {prod.nombre}
+            </li>
+          ))}
       </ul>
       <p className="pedido-total">
         <strong>Total: ${Number(pedido.total).toLocaleString('es-AR')}</strong>
@@ -124,6 +140,9 @@ function PedidoCard({ pedido, onEntregar, entregado }) {
             Marcar como entregado
           </button>
         )}
+        <button className="eliminar-pedido-btn" onClick={onEliminar}>
+          Eliminar
+        </button>
       </div>
     </div>
   );
