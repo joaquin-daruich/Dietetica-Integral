@@ -92,7 +92,7 @@ export default function EditarHome() {
 
     // 1. Subir al bucket "imagenes"
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('imagenes')
+      .from('foto-home')
       .upload(nombreArchivo, archivoImagen, { upsert: true });
 
     if (uploadError) {
@@ -101,7 +101,7 @@ export default function EditarHome() {
 
     // 2. Obtener URL Pública
     const { data: urlData } = supabase.storage
-      .from('imagenes')
+      .from('foto-home')   // antes decía 'imagenes'
       .getPublicUrl(nombreArchivo);
 
     setSubiendoImagen(false);

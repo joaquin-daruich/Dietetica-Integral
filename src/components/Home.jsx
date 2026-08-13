@@ -78,6 +78,7 @@ export default function Home() {
           </div>
 
     <div className="hero-image">
+      {console.log(config)}
       <div className="hero-card">
         <img
           src={config.hero_imagen || "/foto-dietetica.jpg"}
