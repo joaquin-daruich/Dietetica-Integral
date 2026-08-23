@@ -65,7 +65,7 @@ export default function Productos() {
             {filtrados.map((producto) => (
               <div key={producto.id} className="producto-card-tienda">
                 <div className="producto-img-wrap">
-                  <img src={producto.imagen_url} alt={producto.nombre} />
+                  <img src={producto.imagen_url} alt={producto.nombre} loading="lazy" decoding="async" />
                   {producto.stock <= 0 && <span className="sin-stock-badge">Sin stock</span>}
                 </div>
                 <div className="producto-info">

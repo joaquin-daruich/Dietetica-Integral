@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { estaLogueado, cerrarSesion } from '../lib/auth';
 import AdminLogin from './AdminLogin';
+import { comprimirImagen } from '../lib/imageUtils';
 
 export default function Stock() {
   const [logueado, setLogueado] = useState(false);
@@ -190,11 +191,15 @@ export default function Stock() {
       let imagen_url = editando.imagen_url;
 
       if (editando.archivo) {
-        const nombreArchivo = `${Date.now()}-${editando.archivo.name}`;
+        const archivoComprimido = await comprimirImagen(editando.archivo);
+        const nombreArchivo = `${Date.now()}-${archivoComprimido.name}`;
 
         const { error: errorSubida } = await supabase.storage
           .from('productos')
-          .upload(nombreArchivo, editando.archivo);
+          .upload(nombreArchivo, archivoComprimido, {
+            cacheControl: '31536000',
+            upsert: false,
+          });
 
         if (errorSubida) throw errorSubida;
 
@@ -247,10 +252,14 @@ export default function Stock() {
     try {
       let imagen_url = '';
       if (archivo) {
-        const nombreArchivo = `${Date.now()}-${archivo.name}`;
+        const archivoComprimido = await comprimirImagen(archivo);
+        const nombreArchivo = `${Date.now()}-${archivoComprimido.name}`;
         const { error: errorSubida } = await supabase.storage
           .from('productos')
-          .upload(nombreArchivo, archivo);
+          .upload(nombreArchivo, archivoComprimido, {
+            cacheControl: '31536000',
+            upsert: false,
+          });
         if (errorSubida) throw errorSubida;
         const { data: urlData } = supabase.storage.from('productos').getPublicUrl(nombreArchivo);
         imagen_url = urlData.publicUrl;
@@ -569,7 +578,7 @@ export default function Stock() {
               ) : (
                 /* MODO NORMAL */
                 <>
-                  {p.imagen_url && <img src={p.imagen_url} alt={p.nombre} />}
+                  {p.imagen_url && <img src={p.imagen_url} alt={p.nombre} loading="lazy" decoding="async" />}
 
                   <div className="stock-item-info">
                     <strong>{p.nombre}</strong>
@@ -607,4 +616,4 @@ export default function Stock() {
       )}
     </div>
   );
-} 
+}
