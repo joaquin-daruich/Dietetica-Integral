@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient';
 import { useCart } from '../context/CartContext';
 
 export default function Productos() {
+  console.log('holaa')
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState(['Todos']);
   const [categoria, setCategoria] = useState('Todos');
